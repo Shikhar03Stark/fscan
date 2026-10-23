@@ -2,7 +2,11 @@
 #include "fscan/scan.h"
 
 int main() {
-    for (const auto result = fscan::Scanner::scan(std::filesystem::path(".")); const auto& file : result) {
+    fscan::ScannerOptions opts {
+        .roots = {"."},
+        .filter = {".txt"},
+    };
+    for (const auto result = fscan::Scanner::scan(opts); const auto& file : result) {
         std::cout << file << std::endl;
     }
 }

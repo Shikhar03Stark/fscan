@@ -8,9 +8,18 @@
 #include <vector>
 
 namespace fscan {
+
+    struct ScannerOptions {
+        std::vector<std::filesystem::path> roots{"."};
+        std::string filter{};
+        std::size_t maxResults{0};
+        bool recursive{false};
+    };
+
     class Scanner {
     public:
         static std::vector<std::filesystem::path> scan(const std::filesystem::path& root);
+        static std::vector<std::filesystem::path> scan(const ScannerOptions& options);
     };
 }
 
