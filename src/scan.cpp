@@ -5,74 +5,56 @@
 #include "fscan/scan.h"
 
 #include <iostream>
-#include <ostream>
-#include <ranges>
 
 #include "fscan/error.h"
 
 namespace fscan {
-    std::vector<std::filesystem::path> Scanner::scan(const std::filesystem::path &root) {
-        std::vector<std::filesystem::path> result;
-        std::error_code ec{};
-        for (const auto& file : std::filesystem::directory_iterator(root, ec)) {
-            if (ec) {
-                std::cerr << "error: code:" << ec.value() << " " << ec.message() << std::endl;
-                return result;
-            }
-            result.push_back(file.path());
+
+    // utils
+    namespace {
+        void logError(const char *functionName, const FScanException& e) {
+            std::cerr << functionName << ": " << e.what() << std::endl;
         }
-        if (ec) {
-            std::cerr << "error: code:" << ec.value() << " " << ec.message() << std::endl;
-        }
-        return result;
-    }
 
-    void logError(const char *functionName, const FScanException& e) {
-        std::cerr << functionName << ": " << e.what() << std::endl;
-    }
-
-    void validateScannerOptions(const ScannerOptions& options) {
-        if (options.roots.empty()) {
-            throw FScanException("roots cannot be empty");
-        }
-    }
-
-    bool hasSubString(const std::string &s, const std::string &sub) {
-        if (sub.empty()) { return true; }
-        if (sub.size() > s.size()) { return false; }
-
-        for (int i = 0; i < s.size(); i++) {
-            bool isMatch{true};
-            for (int j = 0; j < sub.size() && i + j < s.size(); j++) {
-                if (s[i+j] != sub[j]) {
-                    isMatch = false;
-                }
-            }
-            if (isMatch) {
-                return true;
+        void validateScannerOptions(const ScannerOptions& options) {
+            if (options.roots.empty()) {
+                throw FScanException("roots cannot be empty");
             }
         }
-
-        return false;
     }
 
-    std::vector<std::filesystem::path> Scanner::scan(const ScannerOptions &options) {
+    std::vector<std::filesystem::path> scan(const ScannerOptions &options) {
         try {
             validateScannerOptions(options);
-            std::filesystem::path firstRoot{options.roots.front()};
-            auto results = scan(firstRoot);
-            if (options.filter.empty() || options.filter == "*") {
-                return results;
-            }
+            std::vector<std::filesystem::path> results;
+            const bool noFilter = options.filter.empty() || options.filter == "*";
+            for (const auto& root : options.roots) {
+                std::error_code ec{};
+                const auto addIfMatching = [&](const std::filesystem::directory_entry& entry) {
+                    if (results.size() == options.maxResults && options.maxResults != 0) {
+                        return;
+                    }
+                    std::error_code typeError{};
+                    if (entry.is_regular_file(typeError) && !typeError &&
+                        (noFilter || entry.path().filename().string().contains(options.filter))) {
+                        results.push_back(entry.path());
+                    }
+                };
 
-            // filter
-            for (int i = 0; i<results.size(); ) {
-                if (!hasSubString(results[i], options.filter)) {
-                    std::swap(results[i], results.back());
-                    results.pop_back();
-                }
-                else {
-                    i++;
+                if (options.recursive) {
+                    std::filesystem::recursive_directory_iterator it(root, ec);
+                    const std::filesystem::recursive_directory_iterator end;
+                    while (!ec && it != end && (options.maxResults == 0 || results.size() < options.maxResults)) {
+                        addIfMatching(*it);
+                        it.increment(ec);
+                    }
+                } else {
+                    std::filesystem::directory_iterator it(root, ec);
+                    const std::filesystem::directory_iterator end;
+                    while (!ec && it != end && (options.maxResults == 0 || results.size() < options.maxResults)) {
+                        addIfMatching(*it);
+                        it.increment(ec);
+                    }
                 }
             }
 

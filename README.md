@@ -23,7 +23,7 @@ the order of closest match heuristic
 
 ### 2. Limit matched files output
 
-`fscan -f '.txt' -h 10` gives top 10 matching files with the suffix
+`fscan -f '.txt' -n 10` gives top 10 matching files with the suffix
 
 ### 3. Recursively find files matching the suffix
 

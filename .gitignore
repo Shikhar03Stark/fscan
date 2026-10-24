@@ -1,3 +1,6 @@
 cmake-build*/
 .idea/
 .mcp.jsonf
+.codex/
+.claude
+skills/
